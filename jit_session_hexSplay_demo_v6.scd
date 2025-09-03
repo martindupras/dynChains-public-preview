@@ -36,8 +36,9 @@ s.waitForBoot({
 
     loadFiles.([
         "jit_fxDefs_v6.scd",
-        "jit_chain_core_v6.scd",
-        "jit_chain_utils_v3.scd",
+        "jit_chain_core_v6
+.scd",
+        "jit_chain_utils_v6.scd",
         "jit_chain_crossfade_v4_clean.scd",
         "jit_cf_adapter_v3.scd",
         "jit_notify_bridge_v3.scd",

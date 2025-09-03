@@ -1,0 +1,83 @@
+// jit_utils_cf_v6.scd
+// Crossfade (CF) adapter logic, preview/switch helpers, and health probes.
+
+(
+    ~jitCFAdapter = ~jitCFAdapter ? (
+        buildInactive: nil,
+        switchNow: nil,
+        switchIn: nil,
+        activeSlot: { ~jitActiveChain ? \A }
+    );
+
+    ~jitCF_resolveFadeTail = {
+        var fade = if(~jitCF.notNil and: { ~jitCF[\fadeTime].notNil }, { ~jitCF[\fadeTime] }, { (~jitFadeTime ? 0.25) });
+        var tail = if(~jitCF.notNil and: { ~jitCF[\tailHold].notNil }, { ~jitCF[\tailHold] }, { 0.0 });
+        (fade: fade, tail: tail)
+    };
+
+    ~jitCFPreview = { |spec|
+        ~jitSetNextSpec.(spec);
+        var hasBuildInactive = (~jitCFEnabled == true)
+            and: { ~jitCFAdapter.notNil }
+            and: { ~jitCFAdapter[\buildInactive].isFunction };
+        hasBuildInactive.if({
+            ~jitNotify.(\willBuildInactive, (spec: spec));
+            ~jitCFAdapter[\buildInactive].(spec);
+            ~jitNotify.(\didBuildInactive, (spec: spec));
+        });
+    };
+
+    ~jitCFSwitchNow = { |fade = nil, tail = nil|
+        var cur = ~jitCurrentSpec;
+        var nxt = ~jitNextSpec ? cur;
+        var ft = (fade ?? { ~jitCF_resolveFadeTail.()[\fade] });
+        var tl = (tail ?? { ~jitCF_resolveFadeTail.()[\tail] });
+        ~jitNextSpec = nil;
+        var act = (~jitCFAdapter[\activeSlot].isFunction).if({ ~jitCFAdapter[\activeSlot].() }, { ~jitActiveChain ? \A });
+        ~jitNotifyWillSwitch.(cur, nxt, ft, tl);
+        var canCF = (~jitCFEnabled == true)
+            and: { ~jitCFAdapter.notNil }
+            and: { ~jitCFAdapter[\switchNow].isFunction };
+        canCF.if({
+            ~jitCFAdapter[\switchNow].(ft, tl);
+            ~jitBuildAndNotify.(nxt);
+            ~jitNotifyDidSwitch.(act, nxt);
+            (~jitGUI[\view].notNil).if({ ~jitGUI[\view].refresh });
+        },{
+            ~jitSwitchToNextNow.();
+        });
+    };
+
+    ~jitCFSwitchIn = { |seconds = 0.0, fade = nil, tail = nil|
+        var d = seconds.max(0);
+        var ft = (fade ?? { ~jitCF_resolveFadeTail.()[\fade] });
+        var tl = (tail ?? { ~jitCF_resolveFadeTail.()[\tail] });
+        var canCF = (~jitCFEnabled == true)
+            and: { ~jitCFAdapter.notNil }
+            and: { ~jitCFAdapter[\switchIn].isFunction };
+        canCF.if({
+            ~jitCFAdapter[\switchIn].(d, ft, tl);
+        },{
+            AppClock.sched(d, { ~jitCFSwitchNow.(ft, tl); nil });
+        });
+    };
+
+    ~jitCFPreviewAndSwitchIn = { |spec, seconds = 0.0, fade = nil, tail = nil|
+        ~jitCFPreview.(spec);
+        ~jitCFSwitchIn.(seconds.max(0), fade, tail);
+    };
+
+    ~jitCFAssertLive = {
+        var outA = Ndef(\outA);
+        var outB = Ndef(\outB);
+        var mix  = Ndef(\out);
+        var chansA = outA.numChannels ? -1;
+        var chansB = outB.numChannels ? -1;
+        var gates = ~jitCFGates ? IdentityDictionary.new;
+        var gateA = gates[\outA] ? 'unknown';
+        var gateB = gates[\outB] ? 'unknown';
+        var hasMixer = mix.source.notNil;
+        ("[CF Assert] outA chans=% gate=%  |  outB chans=% gate=%".format(chansA, gateA, chansB, gateB)).postln;
+        ("[CF Assert] mixer present? " ++ hasMixer).postln;
+    };
+)
