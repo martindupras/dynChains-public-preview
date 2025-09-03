@@ -44,7 +44,7 @@ s.waitForBoot({
         "jit_cf_adapter_v6.scd",
         "jit_notify_bridge_v6.scd",
         "jit_chain_gui_core_v6.scd",
-        "jit_chain_gui_api_impl_v3.scd"
+        "jit_chain_gui_api_impl_v6.scd"
     ]);
 
     // ---- 5. Load Extra FX Definitions (v3, v2, or fallback inline) ----
