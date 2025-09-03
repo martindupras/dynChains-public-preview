@@ -1,0 +1,206 @@
+// -----------------------------------------------------------
+// jit_test_suite_v4.scd
+// Deterministic tests for v4 CF engine
+// -----------------------------------------------------------
+
+(
+// Token to avoid overlapping runs
+~jitTestRunToken_v4 = ~jitTestRunToken_v4 ? 0;
+
+// Utility: simple printer (quiet if you prefer)
+~jitPost_v4 = { |str|
+    var s; s = str; s.postln;
+};
+
+// Ensure mixer present before tests
+~jitCFEnsureMixer.();
+
+// --- Test 0: Proxy sanity (called after a baseline build) ---
+~jitTest_ProxySanity_v4 = {
+    var ch, outCh;
+    ch = Ndef(\chain).numChannels ? -1;
+    outCh = Ndef(\out).numChannels ? -1;
+
+    if(ch > 0) { "[PASS] Ndef(\\chain) has channels".postln } { "WARNING: [FAIL] Ndef(\\chain) has no channels".postln };
+    if(outCh > 0) { "[PASS] Ndef(\\out) has channels".postln } { "WARNING: [FAIL] Ndef(\\out) has no channels".postln };
+};
+
+// --- Test 1: Immediate switch clears Next deterministically ---
+~jitTest_ImmediateSwitchClearsNext_v4 = {
+    var ensureNext, doSwitch;
+
+    ensureNext = {
+        var spec;
+        spec = ~jitGuiPreviewSpec ? (~jitCurrentSpec ? [\guitar, \destination]);
+        if(~jitCFPreview.notNil) { ~jitCFPreview.(spec) };
+        nil
+    };
+
+    doSwitch = {
+        ~jitCFSwitchNow.();
+        // allow one tick for GUI/model settle
+        AppClock.sched(0.02, {
+            if(~jitNextSpec.isNil) {
+                "[PASS] Next cleared after switchNow".postln;
+            }{
+                "WARNING: [FAIL] Next cleared after switchNow".postln;
+            };
+            nil
+        });
+        nil
+    };
+
+    AppClock.sched(0, ensureNext);
+    AppClock.sched(0.02, doSwitch);
+};
+
+// --- Test 2: Scheduled switch path ---
+~jitTest_ScheduledSwitchClearsNext_v4 = {
+    var specA, fade, tail, wait;
+    specA = ~jitCurrentSpec ? (~jitGuiPreviewSpec ? [\guitar, \destination]);
+    fade = ~jitCFFadeTime ? 0.08;
+    tail = ~jitCFTailTime ? 0.25;
+    wait = (0.5 + fade + tail + 0.1);
+
+    ~jitCFPreview.(specA);
+    ("[TEST] Next set? " ++ (~jitNextSpec.isNil.not)).postln;
+
+    ~jitCFSwitchIn.(0.5);
+
+    AppClock.sched(wait, {
+        if(~jitNextSpec.isNil) {
+            "[PASS] Next cleared after scheduled switch".postln;
+        }{
+            "WARNING: [FAIL] Next not cleared after scheduled switch".postln;
+        };
+        nil
+    });
+};
+
+// --- Test 3: Liveness check after 2s ---
+~jitTest_LiveAfter2s_v4 = {
+    AppClock.sched(2.1, {
+        ("[LIVE] outA playing: " ++ Ndef(\outA).isPlaying).postln;
+        ("[LIVE] outB playing: " ++ Ndef(\outB).isPlaying).postln;
+        ("[LIVE] mixer present? " ++ Ndef(\out).source.notNil).postln;
+        nil
+    });
+};
+
+// --- Aggregate: Run All (v4) ---
+~jitRunAll_v4 = {
+    var runID;
+    ~jitTestRunToken_v4 = (~jitTestRunToken_v4 ? 0) + 1;
+    runID = ~jitTestRunToken_v4;
+
+    "[jitTest v4] starting…".postln;
+
+    // 0) ensure a baseline current spec
+    {
+        var spec;
+        spec = ~jitGuiPreviewSpec ? (~jitCurrentSpec ? [\guitar, \destination]);
+        if(~jitCurrentSpec.isNil) {
+            if(~jitBuildAndNotify.notNil) { ~jitBuildAndNotify.(spec) } { if(~jitBuild.notNil) { ~jitBuild.(spec) } };
+            ~jitCurrentSpec = spec;
+        };
+        if(~jitTmpMakeMinimalGui_v4.notNil and: { ~jitTmpGuiWindow.isNil }) { ~jitTmpMakeMinimalGui_v4.() };
+        if(~jitGuiRefresh.notNil) { ~jitGuiRefresh.() };
+    }.defer;
+
+    // 1) proxy sanity after a short settle
+    AppClock.sched(0.1, {
+        if(runID != ~jitTestRunToken_v4) { nil }{
+            ~jitTest_ProxySanity_v4.();
+            nil
+        }
+    });
+
+    // 2) immediate switch clears Next
+    AppClock.sched(0.2, {
+        if(runID != ~jitTestRunToken_v4) { nil }{
+            ~jitTest_ImmediateSwitchClearsNext_v4.();
+            nil
+        }
+    });
+
+    // 3) scheduled switch clears Next
+    AppClock.sched(0.5, {
+        if(runID != ~jitTestRunToken_v4) { nil }{
+            ~jitTest_ScheduledSwitchClearsNext_v4.();
+            nil
+        }
+    });
+
+    // 4) liveness after 2s
+    AppClock.sched(1.0, {
+        if(runID != ~jitTestRunToken_v4) { nil }{
+            ~jitTest_LiveAfter2s_v4.();
+            "[jitTest v4] scheduled checks enqueued.".postln;
+            nil
+        }
+    });
+};
+
+// --- Robust CF runner (3 steps)
+//  1) Preview B, Switch NOW, wait 0.2s, assert Next cleared
+//  2) Preview A, SwitchIn(0.5), wait fade+tail+0.1, assert Next cleared
+//  3) CF Assert Live
+~jitRunCFRobust_v4 = {
+    var runID, fade, tail, wait2;
+    ~jitTestRunToken_v4 = (~jitTestRunToken_v4 ? 0) + 1;
+    runID = ~jitTestRunToken_v4;
+
+    fade = ~jitCFFadeTime ? 0.08;
+    tail = ~jitCFTailTime ? 0.25;
+
+    "[jitTest v4] CFRobust starting…".postln;
+
+    // Step 1
+    AppClock.sched(0, {
+        if(runID != ~jitTestRunToken_v4) { nil }{
+            var specB;
+            specB = ~jitGuiPreviewSpec ? (~jitCurrentSpec ? [\guitar, \destination]);
+            ~jitCFPreview.(specB);
+            ~jitCFSwitchNow.();
+            AppClock.sched(0.2, {
+                if(runID != ~jitTestRunToken_v4) { nil }{
+                    if(~jitNextSpec.isNil) { "[PASS] (1) Next cleared after immediate switch".postln }
+                    { "WARNING: [FAIL] (1) Next not cleared after immediate switch".postln };
+                    nil
+                }
+            });
+            nil
+        }
+    });
+
+    // Step 2
+    AppClock.sched(0.35, {
+        if(runID != ~jitTestRunToken_v4) { nil }{
+            var specA;
+            specA = ~jitCurrentSpec ? (~jitGuiPreviewSpec ? [\guitar, \destination]);
+            ~jitCFPreview.(specA);
+            ~jitCFSwitchIn.(0.5);
+
+            wait2 = (fade + tail + 0.1).max(0.2);
+            AppClock.sched(0.5 + wait2, {
+                if(runID != ~jitTestRunToken_v4) { nil }{
+                    if(~jitNextSpec.isNil) { "[PASS] (2) Next cleared after scheduled switch".postln }
+                    { "WARNING: [FAIL] (2) Next not cleared after scheduled switch".postln };
+                    nil
+                }
+            });
+            nil
+        }
+    });
+
+    // Step 3
+    AppClock.sched(1.2 + fade + tail, {
+        if(runID != ~jitTestRunToken_v4) { nil }{
+            if(~jitCFAssertLive.notNil) { ~jitCFAssertLive.() };
+            "[jitTest v4] CFRobust complete.".postln;
+            nil
+        }
+    });
+};
+
+) // end block

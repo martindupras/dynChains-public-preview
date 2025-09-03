@@ -1,0 +1,9 @@
+(
+// jit_chain_crossfade_clean_v3.scd
+// Wrapper: resolves its own folder and loads the v2 implementation next to it.
+// Safe first step so v3 filenames work while behavior stays v2-identical.
+var here;
+here = thisProcess.nowExecutingPath.dirname;
+thisProcess.interpreter.executeFile(here ++ "/jit_chain_crossfade_clean_v2.scd");
+("[jit] jit_chain_crossfade_clean_v3 → loaded jit_chain_crossfade_clean_v2").postln;
+)

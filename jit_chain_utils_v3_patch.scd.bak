@@ -1,0 +1,28 @@
+// jit_chain_utils_v3_patch.scd
+// Shim: patch content has been merged into jit_chain_utils_v3.scd — skipping.
+
+(
+"[jit utils v3] patch is merged into jit_chain_utils_v3.scd — skipping.".postln;
+)
+
+
+
+
+// /*(
+// // jit_chain_utils_patch_v3.scd
+// // Wrapper: resolves its own folder and loads the v2 implementation next to it.
+// // Safe first step so v3 filenames work while behavior stays v2-identical.
+// var here;
+// here = thisProcess.nowExecutingPath.dirname;
+// thisProcess.interpreter.executeFile(here ++ "/jit_chain_utils_patch_v2.scd");
+// ("[jit] jit_chain_utils_patch_v3 → loaded jit_chain_utils_patch_v2").postln;
+// )*/
+//
+// (
+// // jit_chain_utils_v3_patch.scd
+// // Wrapper: resolves its own folder and loads the v2 patch implementation.
+// var here;
+// here = thisProcess.nowExecutingPath.dirname;
+// thisProcess.interpreter.executeFile(here ++ "/jit_chain_utils_v2_patch.scd");
+// ("[jit] jit_chain_utils_v3_patch → loaded jit_chain_utils_v2_patch").postln;
+// )

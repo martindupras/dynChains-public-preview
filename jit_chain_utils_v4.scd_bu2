@@ -1,0 +1,66 @@
+// -----------------------------------------------------------
+// jit_chain_utils_v4.scd
+// Minimal GUI helpers + fallback window for v4
+// -----------------------------------------------------------
+
+(
+// Silent GUI refresh: update known labels if present; no console posts.
+~jitGuiRefresh = ~jitGuiRefresh ? {
+    var curr, next;
+    curr = (~jitCurrentSpec ? "nil");
+    next = (~jitNextSpec ? "nil");
+    if(~jitTmpGuiLabelCurrent.notNil) { ~jitTmpGuiLabelCurrent.string = "Current: " ++ curr.asString };
+    if(~jitTmpGuiLabelNext.notNil)    { ~jitTmpGuiLabelNext.string    = "Next: "    ++ next.asString };
+};
+
+// Coalesce GUI redraw to next UI tick (no flood)
+~jitGuiRefreshOnce = {
+    var did;
+    did = ~jitGuiRefreshScheduled ? false;
+    if(did.not) {
+        ~jitGuiRefreshScheduled = true;
+        {
+            if(~jitGuiRefresh.notNil) { ~jitGuiRefresh.() };
+            ~jitGuiRefreshScheduled = false;
+        }.defer;
+    };
+};
+
+// Provide ~jitSetNextSpec only if missing (some code/tests may call it)
+~jitSetNextSpec = ~jitSetNextSpec ? { |spec|
+    var s;
+    s = spec;
+    ~jitNextSpec = s;
+    if(~jitGuiRefreshOnce.notNil) { ~jitGuiRefreshOnce.() };
+};
+
+// Tiny fallback window (non-invasive)
+~jitTmpMakeMinimalGui_v4 = {
+    var w, b1, b2, b3, lc, ln;
+
+    w = Window("Chain View v4 (fallback)", Rect(100, 100, 420, 165)).front;
+    ~jitTmpGuiWindow = w;
+
+    lc = StaticText(w, Rect(10, 10, 400, 20)); lc.align = \left; ~jitTmpGuiLabelCurrent = lc;
+    ln = StaticText(w, Rect(10, 32, 400, 20)); ln.align = \left; ~jitTmpGuiLabelNext = ln;
+
+    b1 = Button(w, Rect(10, 64, 400, 24));
+    b1.states = [["Preview as Next"]];
+    b1.action = {
+        var spec;
+        spec = ~jitGuiPreviewSpec ? [\guitar, \destination];
+        if(~jitCFPreview.notNil) { ~jitCFPreview.(spec) };
+    };
+
+    b2 = Button(w, Rect(10, 92, 400, 24));
+    b2.states = [["Switch Now"]];
+    b2.action = { if(~jitCFSwitchNow.notNil) { ~jitCFSwitchNow.() } };
+
+    b3 = Button(w, Rect(10, 120, 400, 24));
+    b3.states = [["Switch in 2s"]];
+    b3.action = { if(~jitCFSwitchIn.notNil) { ~jitCFSwitchIn.(2.0) } };
+
+    if(~jitGuiRefresh.notNil) { ~jitGuiRefresh.() };
+};
+
+) // end block

@@ -1,0 +1,24 @@
+// jit_chain_gui_api_v3.scd  (loader shim)
+// Loads the v3 split GUI files in the correct order without changing your demo.
+
+(
+var dir, core, api, load;
+
+dir  = thisProcess.nowExecutingPath.dirname;
+core = dir +/+ "jit_chain_gui_core_v3.scd";
+api  = dir +/+ "jit_chain_gui_api_impl_v3.scd";
+
+// Version-agnostic loader: read the file and interpret the string.
+load = { |path|
+    var src;
+    if(File.exists(path).not) {
+        ("[jit GUI v3] Missing file: " ++ path).warn;
+    }{
+        src = File.readAllString(path);
+        src.interpret;  // <- important: interpret the STRING, not thisProcess
+    };
+};
+
+load.(core);
+load.(api);
+)
