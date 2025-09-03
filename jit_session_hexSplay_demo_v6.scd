@@ -48,7 +48,7 @@ s.waitForBoot({
     ]);
 
     // ---- 5. Load Extra FX Definitions (v3, v2, or fallback inline) ----
-    extrasPathV3 = (work ++ "/jit_fxDefs_extras_v3.scd").standardizePath;
+    extrasPathV3 = (work ++ "/jit_fxDefs_extras_v6.scd").standardizePath;
     extrasPathV2 = (work ++ "/jit_fxDefs_extras_v2.scd").standardizePath;
 
     if (PathName(extrasPathV3).isFile) {
