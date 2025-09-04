@@ -49,6 +49,10 @@
     (~jitGUI[\timer].notNil).if({ ~jitGUI[\timer].stop; ~jitGUI[\timer] = nil; });
 };
 
+~jitChainGuiShow = {
+	~jitGuiShow.();
+};
+
 // --- GUI API: window with bottom bar controls (Preview / Switch) ---
 ~jitGuiShow = { |useListeners = true|
     var w, uv, s, colors, bar, barH, btnW, pad, makeButtons, updateLayout;

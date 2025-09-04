@@ -52,6 +52,60 @@
         base
     };
 
+
+// ---- Source helpers (BlackHole <-> Test) ----
+
+// Hex test generator: returns a multichannel Array of UGens (no amps baked in)
+~hexTestSig = { |numChIn|
+    var numCh, freqs, centsJitter, vibrato, sig, perChAmp;
+    numCh = (numChIn ? (~numCh ? 6)).asInteger.max(1);
+
+    // E2 A2 D3 G3 B3 E4 (extend/shrink as needed)
+    freqs = [82.41, 110, 146.83, 196, 246.94, 329.63];
+    (numCh < freqs.size).if({
+        freqs = freqs.copyRange(0, numCh - 1);
+    },{
+        (numCh > freqs.size).if({
+            freqs = freqs ++ Array.fill(numCh - freqs.size, { |i| freqs.last * (2 ** (i + 1)) });
+        });
+    });
+
+    centsJitter = LFNoise2.kr(0.25 ! numCh).range(-4, 4);  // slow ±4 cents
+    vibrato     = SinOsc.kr(5 ! numCh, 0, 0.003, 1);       // subtle vibrato ratio
+    perChAmp    = 0.12;                                    // conservative; global amp handled outside
+    sig = Array.fill(numCh, { |i|
+        var f      = freqs[i] * (2 ** (centsJitter[i] / 1200)) * vibrato[i];
+        var tone   = Mix([ Saw.ar(f), Pulse.ar(f * 2, 0.4) ]) * 0.5; // soft blend
+        var gate   = LFPulse.kr(0.2 + (0.05 * i), 0, 0.2).lag(0.03); // gentle motion per string
+        var shape  = (0.15 + (0.2 * gate));
+        tone * shape * perChAmp
+    });
+
+    sig
+};
+
+// Returns the chosen source signal (Array of UGens or multichannel UGen)
+// Priority: ~sourceMode (\blackhole | \test) if set; otherwise ~jitUseRealInput boolean
+~jitSelectSourceSig = { |numChIn|
+    var numCh, mode, sig, idx;
+    numCh = (numChIn ? (~numCh ? 6)).asInteger.max(1);
+
+    // Build [0, 1, ..., numCh-1] safely (avoids the '..' parse issue)
+    idx = Array.series(numCh, 0, 1);
+
+    mode = (~sourceMode ? ((~jitUseRealInput == true).if(\blackhole, \test)));
+
+    sig = (mode == \blackhole).if({
+        SoundIn.ar(idx)          // multichannel input from device (e.g. BlackHole)
+    },{
+        ~hexTestSig.(numCh)      // multichannel hex test generator
+    });
+
+    sig
+};
+
+
+
     // ---- Chain Builder: Build (or rebuild) the chain ----
     // spec: [\guitar, [\tremolo, (id:\t1, rate:3)], ..., \destination or \destinationStereo]
     ~jitBuild = { |spec|
@@ -132,8 +186,9 @@
         nInChannels = (Ndef(\chain).numChannels ? ~numCh).max(1);
 
         Ndef(\out).source = {
-            var amp = NamedControl.kr(\dest_amp, ~defaultAmp);
-            var in  = Ndef(\chain).ar;  // follow actual channel count
+		var amp, in, l, r;
+            amp = NamedControl.kr(\dest_amp, ~defaultAmp);
+            in  = Ndef(\chain).ar;  // follow actual channel count
 
             mustStereo.if({
                 (~jitUseSplayDownmix == true).if({
@@ -149,8 +204,8 @@
                     if(nInChannels > 4) { wR[4] = 0.7 };
                     if(nInChannels > 5) { wL[5] = 0.4; wR[5] = 0.4 };
 
-                    var l = Mix.fill(nInChannels, { |i| in[i] * wL[i] });
-                    var r = Mix.fill(nInChannels, { |i| in[i] * wR[i] });
+                    l = Mix.fill(nInChannels, { |i| in[i] * wL[i] });
+                    r = Mix.fill(nInChannels, { |i| in[i] * wR[i] });
                     [l, r] * amp
                 })
             },{
@@ -256,9 +311,10 @@
                     (~jitUseSplayDownmix == true).if({
                         (in.isArray.not).if({ [in, in] * amp }, { Splay.ar(in) * amp })
                     },{
+					var wL, wR, l, r;
                         // Manual downmix with simple weights
-                        var wL = Array.fill(nInChannels, 0.0);
-                        var wR = Array.fill(nInChannels, 0.0);
+                        wL = Array.fill(nInChannels, 0.0);
+                        wR = Array.fill(nInChannels, 0.0);
 
                         if(nInChannels > 0) { wL[0] = 1.0 };
                         if(nInChannels > 1) { wR[1] = 1.0 };
@@ -267,8 +323,8 @@
                         if(nInChannels > 4) { wR[4] = 0.7 };
                         if(nInChannels > 5) { wL[5] = 0.4; wR[5] = 0.4 };
 
-                        var l = Mix.fill(nInChannels, { |i| (in.isArray.if({ in[i] }, { in })) * wL[i] });
-                        var r = Mix.fill(nInChannels, { |i| (in.isArray.if({ in[i] }, { in })) * wR[i] });
+                        l = Mix.fill(nInChannels, { |i| (in.isArray.if({ in[i] }, { in })) * wL[i] });
+                        r = Mix.fill(nInChannels, { |i| (in.isArray.if({ in[i] }, { in })) * wR[i] });
                         [l, r] * amp
                     })
                 },{

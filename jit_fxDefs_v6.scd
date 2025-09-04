@@ -17,13 +17,14 @@
     // phase: (0..1)    -- Phase offset (fraction of 2pi)
     // ------------------------------------------------------------
     ~fxBuilders[\tremolo] = { |prefix, args = nil|
-        var a = ~argsOrEvent.(args);
+	var a, rateCtl, depthCtl, phaseCtl, depthPos, lfo;
+        a = ~argsOrEvent.(args);
         { |in|
-            var rateCtl  = NamedControl.kr((prefix ++ "_rate").asSymbol,   (a.at(\rate)  ? 3.0)).clip(0.01, 20.0);
-            var depthCtl = NamedControl.kr((prefix ++ "_depth").asSymbol,  (a.at(\depth) ? 0.5)).clip(0.0, 1.0);
-            var phaseCtl = NamedControl.kr((prefix ++ "_phase").asSymbol,  (a.at(\phase) ? 0.0));
-            var depthPos = depthCtl.clip(0.0, 0.999); // avoid fully nulling the carrier
-            var lfo      = SinOsc.kr(rateCtl, phaseCtl * 2pi).range(1 - depthPos, 1);
+             rateCtl  = NamedControl.kr((prefix ++ "_rate").asSymbol,   (a.at(\rate)  ? 3.0)).clip(0.01, 20.0);
+             depthCtl = NamedControl.kr((prefix ++ "_depth").asSymbol,  (a.at(\depth) ? 0.5)).clip(0.0, 1.0);
+             phaseCtl = NamedControl.kr((prefix ++ "_phase").asSymbol,  (a.at(\phase) ? 0.0));
+             depthPos = depthCtl.clip(0.0, 0.999); // avoid fully nulling the carrier
+             lfo      = SinOsc.kr(rateCtl, phaseCtl * 2pi).range(1 - depthPos, 1);
             in * lfo
         }
     };

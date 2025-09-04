@@ -17,7 +17,7 @@
    ------------------------------------------------------------ */
 ~fxBuilders[\chopTrem] = { |prefix, args = nil|
     var a = ~argsOrEvent.(args);
-    {
+    {|in|
         var rateCtl, dutyCtl, smoothCtl, mixCtl, gate;
         rateCtl   = NamedControl.kr((prefix ++ "_rate").asSymbol,   (a.at(\rate)   ? 8.0)).clip(0.1, 25.0);
         dutyCtl   = NamedControl.kr((prefix ++ "_duty").asSymbol,   (a.at(\duty)   ? 0.25)).clip(0.01, 0.99);
@@ -40,7 +40,7 @@
    ------------------------------------------------------------ */
 ~fxBuilders[\slapback] = { |prefix, args = nil|
     var a = ~argsOrEvent.(args);
-    {
+    {|in|
         var timeCtl, decayCtl, mixCtl, dampCtl, hpCtl, wobRateCtl, wobDepthCtl;
         var modTime, maxDelay, wet;
         timeCtl     = NamedControl.kr((prefix ++ "_time").asSymbol,        (a.at(\time)        ? 0.12)).clip(0.03, 0.25);
@@ -66,7 +66,7 @@
    ------------------------------------------------------------ */
 ~fxBuilders[\ringmod] = { |prefix, args = nil|
     var a = ~argsOrEvent.(args);
-    {
+    {|in|
         var freqCtl, mixCtl, carrier;
         freqCtl = NamedControl.kr((prefix ++ "_freq").asSymbol, (a.at(\freq) ? 500)).clip(0.5, 8000);
         mixCtl  = NamedControl.kr((prefix ++ "_mix").asSymbol,  (a.at(\mix)  ? 0.85)).clip(0.0, 1.0);

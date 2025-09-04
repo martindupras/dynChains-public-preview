@@ -4,7 +4,6 @@
 // - Uses ~jitGui_drawFunc for actual drawing
 // - Binds to ~jitListeners for reactive updates (if present)
 // - Compatible with modular chain/crossfade system
-
 (
 ~jitGui_makeWindow = {
     var win, view, scale, title, bg, s;
