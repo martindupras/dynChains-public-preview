@@ -3,7 +3,7 @@
 // - Auto-follows ~jitCurrentSpec and ~jitNextSpec
 // - Subscribes to ~jitListeners if present; otherwise falls back to a timer refresh
 // - Robust spec parsing (Array/Event forms), no font measurement calls
-// - Keys: 'o' orientation, '+/-' scale, 'n' toggle next row (handled in window layer)
+// - Keys: 'o' orientation, '+/-' scale, 'n' toggle next row
 // - Style: tilde vars, no caret (^), vars declared first in drawFunc
 
 (
@@ -112,18 +112,6 @@
 
     Pen.fillColor = colors[\bg]; Pen.addRect(b); Pen.fill;
     Pen.font = font2; Pen.strokeColor = Color.gray(0.5);
-
-    // --- OPTIONAL header: version + source mode ---
-    {
-        var hdrText, srcModeStr;
-        srcModeStr = (~sourceMode ? ((~jitUseRealInput == true).if(\blackhole, \test))).asString;
-        hdrText = "JIT (" ++ (~displayVersion ? "v6") ++ "), src: " ++ srcModeStr;
-        Pen.color = Color.gray(0.7);
-        Pen.font  = Font("Helvetica", (14 * scale).round(1).max(1));
-        Pen.stringAtPoint(hdrText, Point(b.left + pad2, b.top + (4 * scale)));
-        Pen.font  = font2; // restore main font
-        Pen.color = fg2;   // restore fg color
-    }.value;
 
     colorFor = { |stage, isNextRow|
         var id, cOut;
